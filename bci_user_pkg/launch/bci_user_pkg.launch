@@ -1,0 +1,24 @@
+<launch>
+
+  <arg name="test_mode" default="true" />
+
+  <arg if="$(arg test_mode)" name="object_recognition" default="true" />
+  <arg if="$(arg test_mode)" name="fake_bci_gui" default="true" />
+
+  <arg unless="$(arg test_mode)" name="object_recognition" default="false" />
+  <arg unless="$(arg test_mode)" name="fake_bci_gui" default="false" />
+
+  <group if="$(arg object_recognition)">
+    <node name="object_recognition" pkg="bci_user_pkg" type="object_recognition.py" respawn="false" output="screen">
+    </node>
+  </group>
+
+  <group if="$(arg fake_bci_gui)">
+    <node name="fake_bci_gui" pkg="bci_user_pkg" type="fake_bci_gui.py" respawn="false" output="screen">
+    </node>
+  </group>
+
+  <node pkg="tf" type="static_transform_publisher" name="camera_frame_broadcaster" args="-0.035 -0.0795005 0.0827469 -0.00521848 -0.00502728 0.00248873 0.999971 wrist_3_link camera_color_optical_frame 100">
+  </node>
+
+</launch>
