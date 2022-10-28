@@ -95,11 +95,11 @@ void objectDetectionCallback(const bci_messages::object_state::ConstPtr& msg)
 struct jnt_angs{double angles[6];};
 std::map<std::string, jnt_angs> create_joint_pos(){
     std::map<std::string, jnt_angs> joint_positions;
-    joint_positions["home"] = {-11.75, -83.80, 47.90, -125.0, -90.0, 0.0};
-    joint_positions["bring_blue_block"] = {54.1, -75.9, 49.1, -61.2, -90.0, 0.0};
-    joint_positions["bring_wood_block"] = {80.9, -75.9, 49.1, -61.2, -90.0, 0.0};
-    joint_positions["bring_red_tin"] = {119.3, -75.9, 49.1, -61.2, -90.0, 0.0};
-    joint_positions["deliver_position"] = {154.5, -75.9, 49.1, -61.2, -90.0, 0.0};
+    joint_positions["home"] = {6.20, -77.7, 35.95, -48.3, -90.0, 0.0};
+    //joint_positions["bring_blue_block"] = {54.1, -75.9, 49.1, -61.2, -90.0, 0.0};
+    //joint_positions["bring_wood_block"] = {80.9, -75.9, 49.1, -61.2, -90.0, 0.0};
+    //joint_positions["bring_red_tin"] = {119.3, -75.9, 49.1, -61.2, -90.0, 0.0};
+    joint_positions["deliver_position"] = {-65.0, -75.9, 49.1, -61.2, -90.0, 0.0};
     return joint_positions;
 };
 
@@ -579,7 +579,7 @@ geometry_msgs::Pose look_for_objects(string bring_cmd)
 bool bring_object(string bring_cmd, std::map<std::string, double> &targetJoints, moveit_robot &Robot)
 {
     // Move to position above block
-    Robot.move_robot(targetJoints, bring_cmd, bring_cmd);
+    //Robot.move_robot(targetJoints, bring_cmd, bring_cmd);
 
     bool success = false;
     while ((not success) and ros::ok()){
@@ -597,20 +597,31 @@ bool bring_object(string bring_cmd, std::map<std::string, double> &targetJoints,
         target_pose.orientation.w = pose_now.orientation.w;
         target_pose.position.x = obj_pose.position.x;
         target_pose.position.y = obj_pose.position.y;
-        target_pose.position.z = 0.4;
+        target_pose.position.z = 0.3;
         ROS_INFO_STREAM("Target pose: \n" << target_pose);
         success = Robot.plan_to_pose(target_pose, target_pose.orientation.z);
     }
 
     if (success){
-        // Move down, pick block up, move up
-        pick_up_object(Robot, 0.11);
+        if (objectString != "stop_robot"){
+            // Move down, pick block up, move up
+            pick_up_object(Robot, 0.04);
 
-        // Move to stack position
-        Robot.move_robot(targetJoints, bring_cmd, string("deliver_position"));
+            if (objectString == "stop_robot"){
+                cout << "STOP ROBOT COMMAND RECEIVED" << endl;
+                
+                // Move down, set down side, move up
+                set_down_object(Robot, 0.04, 0.05);
+            }
 
-        // Move down, set down side, move up
-        set_down_object(Robot, 0.11, 0.05);
+            else {
+                // Move to stack position
+                Robot.move_robot(targetJoints, bring_cmd, string("deliver_position"));
+
+                // Move down, set down side, move up
+                set_down_object(Robot, 0.04, 0.05);
+            }
+        }
     }
     else {
         cout << "Failed to perform IK plan" << endl;
@@ -660,13 +671,17 @@ int main(int argc, char** argv)
             targetJoints.clear();
 
             // Ignore repeat requests
-            if (objectString != last_obj_string)
-            {
-                cout << "Robot Objective: " << objectString << endl;
-                last_obj_string = objectString;
+            //if (objectString != last_obj_string)
+            //{
+                
 
                 if ( objectString != "")
-                {
+                {   
+                    if (objectString != last_obj_string) {
+                        cout << "Robot Objective: " << objectString << endl;
+                        last_obj_string = objectString;
+                    }
+
                     Robot.robot_status_msg.data = objectString;
                     Robot.robot_status_pub.publish(Robot.robot_status_msg);
 
@@ -680,13 +695,17 @@ int main(int argc, char** argv)
                     }
                     Robot.robot_status_msg.data = "Done";
                     Robot.robot_status_pub.publish(Robot.robot_status_msg);
+                    objectString = "";
                 }
 
-                // wait position
-                Robot.robot_status_msg.data = "Waiting";
-                Robot.robot_status_pub.publish(Robot.robot_status_msg);
-                cout << ">>>>-- Waiting for command --<<<<" << endl;
-            }
+                if (objectString != last_obj_string) {
+                    // wait position
+                    Robot.robot_status_msg.data = "Waiting";
+                    Robot.robot_status_pub.publish(Robot.robot_status_msg);
+                    cout << ">>>>-- Waiting for command --<<<<" << endl;
+                    last_obj_string = objectString;
+                }
+            //}
     }
 
     ros::shutdown();
